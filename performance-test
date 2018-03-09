@@ -1,0 +1,27 @@
+(defmacro chrono-func (output fn &rest args)
+    `(let ((init-time (cadr (current-time)))
+           (final-time)
+           (final-result))
+       (setq final-result (funcall ,fn ,@args))
+       (setq final-time (- (cadr (current-time)) init-time))
+       (message "Time:%2s s" final-time)
+       (if ,output
+         final-result
+         final-time)))
+
+(let* ((n 10000)
+       (list (number-sequence 0 n))
+       (my-zipper (my-zipper/from-list list))
+       (my-better-zipper (my-better-zipper/from-list list))
+       (measure-zipper (lambda (zipper right left) 
+                         (chrono-func nil 
+                           (lambda () 
+                             (let ((my-zip zipper))
+                               ; go right
+                               (while (second my-zip)
+                                 (setq my-zip (funcall right my-zip)))
+                               ; go left
+                               (while (first my-zip)
+                                 (setq my-zip (funcall left my-zip)))))))))
+  (funcall measure-zipper my-zipper 'my-zipper/right 'my-zipper/left)
+  (funcall measure-zipper my-better-zipper 'my-better-zipper/right 'my-better-zipper/left))

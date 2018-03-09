@@ -1,0 +1,8 @@
+* Welcome
+:PROPERTIES:
+:CREATED:  [2018-03-09 Fri 16:25]
+:END:
+
+This is a short implementation of the zipper data structure. I have
+just made it up, so it could contain errors. It is not meant to be
+usable, but it is an exercise for the mind :)

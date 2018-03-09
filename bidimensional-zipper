@@ -1,0 +1,59 @@
+(defun my-zipper/from-list (list)
+  "creates a zipper from a list"
+  `(nil ,list))
+
+(defun my-zipper/element (zipper)
+  "returns current zipper element"
+  (let ((right (second zipper)))
+    (if right (first right) (first (reverse (first zipper))))))
+
+(defun my-zipper/right (zipper)
+  "returns zipper shifted to right"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if right
+      (if left
+        (list (append left (list (first right))) (cdr right))
+        (list (list (first right)) (cdr right))) 
+      zipper)))
+
+(defun my-zipper/left (zipper)
+  "returns zipper shifted to left"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if left
+      (if right
+        (list (butlast left) (cons (first (reverse (first zipper))) right))
+        (list (butlast left) (list (first (reverse (first zipper))))))
+      zipper)))
+
+(ert-deftest zipper-from-list ()
+  (let ((my-zipper (my-zipper/from-list '(1 2 3 4))))
+    (should (equal my-zipper '(nil (1 2 3 4))))))
+
+(ert-deftest zipper-element ()
+  (let ((my-zipper (my-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-zipper/element my-zipper) 1))))
+
+(ert-deftest zipper-element-at-end ()
+  (let ((my-zipper (my-zipper/right (my-zipper/from-list '(1)))))
+    (should (equal (my-zipper/element my-zipper) 1))))
+
+(ert-deftest zipper-right ()
+  (let ((my-zipper (my-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-zipper/right my-zipper) '((1) (2 3 4))))))
+
+(ert-deftest zipper-right-at-end ()
+  (let ((my-zipper (my-zipper/from-list '(1))))
+    (should (equal (my-zipper/right my-zipper) '((1) nil)))))
+
+(ert-deftest zipper-left ()
+  (let ((my-zipper (my-zipper/right (my-zipper/from-list '(1 2)))))
+    (should (equal (my-zipper/left my-zipper) '(nil (1 2))))))
+
+(ert-deftest zipper-left-at-beginning ()
+  (let ((my-zipper (my-zipper/from-list '(1))))
+    (should (equal (my-zipper/left my-zipper) '(nil (1))))))
+
+
+(ert-run-tests-interactively 't)

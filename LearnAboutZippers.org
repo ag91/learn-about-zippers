@@ -1,0 +1,394 @@
+* Functional zipper in elisp 
+  CLOSED: [2018-03-09 Fri 16:14] SCHEDULED: <2018-03-09 Fri>
+  :PROPERTIES:
+  :CREATED:  [2018-02-24 Sat 20:11]
+  :EXPORT_FILE_NAME: LearnAboutZippers
+  :ID:       5336320a-4462-4aec-8d2d-5482fbcea920
+  :END:
+  :LOGBOOK:
+  - Note taken on [2018-03-08 Thu 17:10] \\
+    I have written a bidimensional zipper. Not yet a 4 dimensional one
+  - Note taken on [2018-03-08 Thu 16:23] \\
+    https://www.gnu.org/software/emacs/manual/html_mono/ert.html#Useful-Techniques
+  - Rescheduled from "[2018-02-24 Sat]" on [2018-02-24 Sat 20:11]
+  :END:
+
+https://stackoverflow.com/questions/380438/what-is-the-zipper-data-structure-and-should-i-be-using-it
+
+https://en.wikipedia.org/wiki/Zipper_(data_structure)
+
+This is some experimenting in defining the fantastic functional data
+structure called zipper.
+
+*Note*: the code below is a proof of concept and it has been great fun
+ to write.
+** bidimensional zipper
+CLOSED: [2018-03-08 Thu 17:17]
+:PROPERTIES:
+:CREATED:  [2018-03-08 Thu 17:16]
+:header-args: :tangle bidimensional-zipper
+:END:
+:LOGBOOK:
+- CLOSING NOTE [2018-03-08 Thu 17:17]
+:END:
+
+Let's start from a zipper that makes a list navigable:
+
+#+NAME:bidimensional_zipper
+#+BEGIN_SRC elisp
+(defun my-zipper/from-list (list)
+  "creates a zipper from a list"
+  `(nil ,list))
+
+(defun my-zipper/element (zipper)
+  "returns current zipper element"
+  (let ((right (second zipper)))
+    (if right (first right) (first (reverse (first zipper))))))
+
+(defun my-zipper/right (zipper)
+  "returns zipper shifted to right"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if right
+      (if left
+        (list (append left (list (first right))) (cdr right))
+        (list (list (first right)) (cdr right))) 
+      zipper)))
+
+(defun my-zipper/left (zipper)
+  "returns zipper shifted to left"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if left
+      (if right
+        (list (butlast left) (cons (first (reverse (first zipper))) right))
+        (list (butlast left) (list (first (reverse (first zipper))))))
+      zipper)))
+
+(ert-deftest zipper-from-list ()
+  (let ((my-zipper (my-zipper/from-list '(1 2 3 4))))
+    (should (equal my-zipper '(nil (1 2 3 4))))))
+
+(ert-deftest zipper-element ()
+  (let ((my-zipper (my-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-zipper/element my-zipper) 1))))
+
+(ert-deftest zipper-element-at-end ()
+  (let ((my-zipper (my-zipper/right (my-zipper/from-list '(1)))))
+    (should (equal (my-zipper/element my-zipper) 1))))
+
+(ert-deftest zipper-right ()
+  (let ((my-zipper (my-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-zipper/right my-zipper) '((1) (2 3 4))))))
+
+(ert-deftest zipper-right-at-end ()
+  (let ((my-zipper (my-zipper/from-list '(1))))
+    (should (equal (my-zipper/right my-zipper) '((1) nil)))))
+
+(ert-deftest zipper-left ()
+  (let ((my-zipper (my-zipper/right (my-zipper/from-list '(1 2)))))
+    (should (equal (my-zipper/left my-zipper) '(nil (1 2))))))
+
+(ert-deftest zipper-left-at-beginning ()
+  (let ((my-zipper (my-zipper/from-list '(1))))
+    (should (equal (my-zipper/left my-zipper) '(nil (1))))))
+
+
+(ert-run-tests-interactively 't)
+#+END_SRC
+
+Note that this implementation is naive and slow. Indeed, reversing
+lists is not ideal.
+
+** measure the improvement in storing the left list reversed 
+CLOSED: [2018-03-09 Fri 12:26]
+:PROPERTIES:
+:CREATED:  [2018-03-08 Thu 23:01]
+:END:
+:LOGBOOK:
+- CLOSING NOTE [2018-03-09 Fri 12:26]
+:END:
+
+Reversing lists is an expensive operation. Let's optimize a little by
+reversing the left content only once (at creation time).
+
+This is the improved zipper:
+
+#+NAME:enhanced_zipper
+#+BEGIN_SRC elisp :tangle enhanced-zipper
+(defun my-better-zipper/from-list (list)
+  "creates a zipper from a list"
+  `(nil ,list))
+
+(defun my-better-zipper/element (zipper)
+  "returns current zipper element"
+  (let ((right (second zipper)))
+    (if right (first right) (first (first zipper)))))
+
+(defun my-better-zipper/right (zipper)
+  "returns zipper shifted to right"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if right
+      (if left
+        (list (cons (first right) left) (cdr right))
+        (list (list (first right)) (cdr right))) 
+      zipper)))
+
+(defun my-better-zipper/left (zipper)
+  "returns zipper shifted to left"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if left
+      (if right
+        (list (cdr left) (cons (first left) right))
+        (list (cdr left) (list (first left))))
+      zipper)))
+
+(defun my-better-zipper/up (zipper)
+  "returns zipper shifted up"
+  ;; TODO
+  zipper)
+
+(defun my-better-zipper/down (zipper)
+  "returns zipper shifted down"
+  ;; TODO
+  zipper)
+
+(ert-deftest zipper-from-list ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1 2 3 4))))
+    (should (equal my-better-zipper '(nil (1 2 3 4))))))
+
+(ert-deftest zipper-element ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-better-zipper/element my-better-zipper) 1))))
+
+(ert-deftest zipper-element-at-end ()
+  (let ((my-better-zipper (my-better-zipper/right (my-better-zipper/from-list '(1)))))
+    (should (equal (my-better-zipper/element my-better-zipper) 1))))
+
+(ert-deftest zipper-right ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-better-zipper/right my-better-zipper) '((1) (2 3 4))))))
+
+(ert-deftest zipper-right-at-end ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1))))
+    (should (equal (my-better-zipper/right my-better-zipper) '((1) nil)))))
+
+(ert-deftest zipper-left ()
+  (let ((my-better-zipper (my-better-zipper/right (my-better-zipper/from-list '(1 2)))))
+    (should (equal (my-better-zipper/left my-better-zipper) '(nil (1 2))))))
+
+(ert-deftest zipper-left-at-beginning ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1))))
+    (should (equal (my-better-zipper/left my-better-zipper) '(nil (1))))))
+
+
+(ert-run-tests-interactively 't)
+#+END_SRC
+
+Now we want to checkout which is efficiency we got.
+
+Now I need a huge list, a repetition of right and left and a metric
+function.
+
+- [X] how to unfold in elisp?
+  =make-list= and =number-sequence=
+- [X] is there a time macro in which I can wrap the macro?
+  https://lists.gnu.org/archive/html/help-gnu-emacs/2009-03/msg00736.html
+  #+BEGIN_SRC elisp :tangle no
+  (defmacro chrono-func (output fn &rest args)
+    `(let ((init-time (cadr (current-time)))
+           (final-time)
+           (final-result))
+       (setq final-result (funcall ,fn ,@args))
+       (setq final-time (- (cadr (current-time)) init-time))
+       (message "Time:%2s s" final-time)
+       (when ,output
+         final-result)))
+  #+END_SRC
+
+Let's create very long zippers, traverse them and check the
+how long it takes:
+
+#+NAME: the test
+#+BEGIN_SRC elisp :tangle performance-test
+(defmacro chrono-func (output fn &rest args)
+    `(let ((init-time (cadr (current-time)))
+           (final-time)
+           (final-result))
+       (setq final-result (funcall ,fn ,@args))
+       (setq final-time (- (cadr (current-time)) init-time))
+       (message "Time:%2s s" final-time)
+       (if ,output
+         final-result
+         final-time)))
+
+(let* ((n 10000)
+       (list (number-sequence 0 n))
+       (my-zipper (my-zipper/from-list list))
+       (my-better-zipper (my-better-zipper/from-list list))
+       (measure-zipper (lambda (zipper right left) 
+                         (chrono-func nil 
+                           (lambda () 
+                             (let ((my-zip zipper))
+                               ; go right
+                               (while (second my-zip)
+                                 (setq my-zip (funcall right my-zip)))
+                               ; go left
+                               (while (first my-zip)
+                                 (setq my-zip (funcall left my-zip)))))))))
+  (funcall measure-zipper my-zipper 'my-zipper/right 'my-zipper/left)
+  (funcall measure-zipper my-better-zipper 'my-better-zipper/right 'my-better-zipper/left))
+#+END_SRC
+
+As expected the second version improves matters significantly:
+
+#+BEGIN_QUOTE
+Time:37 s
+Time: 0 s
+#+END_QUOTE
+
+** zipper
+CLOSED: [2018-03-09 Fri 15:46]
+:PROPERTIES:
+:CREATED:  [2018-03-08 Thu 17:16]
+:END:
+:LOGBOOK:
+- CLOSING NOTE [2018-03-09 Fri 15:46]
+- Note taken on [2018-03-08 Thu 17:17] \\
+  an idea is to still create a zipper from a list and to leave nil two sides
+:END:
+
+I can extend my enhanced zipper to work with trees. This means we need
+to support =up= and =down= operations. 
+
+The enhancement must still permit to use the zipper with a simple
+list.
+
+#+BEGIN_SRC elisp :tangle the-zipper
+(defun my-real-zipper/from-list (list)
+  "creates a zipper from a list"
+  `(nil ,list nil))
+
+(defun my-real-zipper/get-left (zipper)
+  (first zipper))
+
+(defun my-real-zipper/get-right (zipper)
+  (second zipper))
+
+(defun my-real-zipper/get-up (zipper)
+  (third zipper))
+
+(defun my-real-zipper/get-down (zipper)
+  (my-real-zipper/element zipper))
+
+(defun my-real-zipper/element (zipper)
+  "returns current zipper element"
+  (let ((right (my-real-zipper/get-right zipper))
+        (left (my-real-zipper/get-left zipper)))
+    (if right (first right) (first left))))
+
+(defun my-real-zipper/right (zipper)
+  "returns zipper shifted to right"
+  (let ((right (my-real-zipper/get-right zipper))
+        (left (my-real-zipper/get-left zipper))
+        (up (my-real-zipper/get-up zipper)))
+    (if right
+      (if left
+        (list (cons (first right) left) (cdr right) up)
+        (list (list (first right)) (cdr right) up)) 
+      zipper)))
+
+(defun my-real-zipper/left (zipper)
+  "returns zipper shifted to left"
+  (let ((right (my-real-zipper/get-right zipper))
+        (left (my-real-zipper/get-left zipper)))
+    (if left
+      (if right
+        (list (cdr left) (cons (first left) right) (my-real-zipper/get-up zipper))
+        (list (cdr left) (list (first left)) (my-real-zipper/get-up zipper)))
+      zipper)))
+
+(defun my-real-zipper/up (zipper)
+  "returns zipper shifted up"
+  (let ((up (my-real-zipper/get-up zipper)))
+    (if up
+      (list 
+        (my-real-zipper/get-left up) 
+        (my-real-zipper/get-right up)
+        (my-real-zipper/get-up up))
+      zipper)))
+
+(defun my-real-zipper/down (zipper)
+  "returns zipper shifted down"
+  (let ((down (my-real-zipper/get-down zipper)))
+    (if (consp down)
+      (list 
+        (my-real-zipper/get-left (my-real-zipper/from-list down)) 
+        (my-real-zipper/get-right (my-real-zipper/from-list down))
+        zipper)
+      zipper)))
+
+
+(ert-deftest zipper-from-list ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1 2 3 4))))
+    (should (equal my-real-zipper '(nil (1 2 3 4) nil)))))
+
+(ert-deftest zipper-element ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-real-zipper/element my-real-zipper) 1))))
+
+(ert-deftest zipper-element-at-end ()
+  (let ((my-real-zipper (my-real-zipper/right (my-real-zipper/from-list '(1)))))
+    (should (equal (my-real-zipper/element my-real-zipper) 1))))
+
+(ert-deftest zipper-right ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-real-zipper/right my-real-zipper) '((1) (2 3 4) nil)))))
+
+(ert-deftest zipper-right-at-end ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1))))
+    (should (equal (my-real-zipper/right my-real-zipper) '((1) nil nil)))))
+
+(ert-deftest zipper-left ()
+  (let ((my-real-zipper (my-real-zipper/right (my-real-zipper/from-list '(1 2)))))
+    (should (equal (my-real-zipper/left my-real-zipper) '(nil (1 2) nil)))))
+
+(ert-deftest zipper-left-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1))))
+    (should (equal (my-real-zipper/left my-real-zipper) '(nil (1) nil)))))
+
+(ert-deftest zipper-down-up-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1)))))
+    (should (equal (my-real-zipper/up (my-real-zipper/down my-real-zipper)) my-real-zipper))))
+
+(ert-deftest zipper-up-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1)))))
+    (should (equal (my-real-zipper/up my-real-zipper) my-real-zipper))))
+
+(ert-deftest zipper-down-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1)))))
+    (should (equal (my-real-zipper/element (my-real-zipper/down my-real-zipper)) 1))))
+
+(ert-deftest zipper-down ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1 (2))))))
+    (should (equal (my-real-zipper/element (my-real-zipper/down (my-real-zipper/right (my-real-zipper/down my-real-zipper)))) 2))))
+
+(ert-deftest zipper-up ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1 (2))))))
+    (should (equal (my-real-zipper/element (my-real-zipper/down (my-real-zipper/right (my-real-zipper/down my-real-zipper)))) 2))))
+
+(ert-run-tests-interactively 't)
+#+END_SRC
+
+** there is also a generic zippers!
+CLOSED: [2018-03-09 Fri 16:13]
+:PROPERTIES:
+:CREATED:  [2018-03-08 Thu 17:10]
+:END:
+:LOGBOOK:
+- CLOSING NOTE [2018-03-09 Fri 16:13]
+:END:
+http://conway.rutgers.edu/~ccshan/wiki/blog/posts/WalkZip1/
+

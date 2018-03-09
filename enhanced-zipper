@@ -1,0 +1,69 @@
+(defun my-better-zipper/from-list (list)
+  "creates a zipper from a list"
+  `(nil ,list))
+
+(defun my-better-zipper/element (zipper)
+  "returns current zipper element"
+  (let ((right (second zipper)))
+    (if right (first right) (first (first zipper)))))
+
+(defun my-better-zipper/right (zipper)
+  "returns zipper shifted to right"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if right
+      (if left
+        (list (cons (first right) left) (cdr right))
+        (list (list (first right)) (cdr right))) 
+      zipper)))
+
+(defun my-better-zipper/left (zipper)
+  "returns zipper shifted to left"
+  (let ((right (second zipper))
+        (left (first zipper)))
+    (if left
+      (if right
+        (list (cdr left) (cons (first left) right))
+        (list (cdr left) (list (first left))))
+      zipper)))
+
+(defun my-better-zipper/up (zipper)
+  "returns zipper shifted up"
+  ;; TODO
+  zipper)
+
+(defun my-better-zipper/down (zipper)
+  "returns zipper shifted down"
+  ;; TODO
+  zipper)
+
+(ert-deftest zipper-from-list ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1 2 3 4))))
+    (should (equal my-better-zipper '(nil (1 2 3 4))))))
+
+(ert-deftest zipper-element ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-better-zipper/element my-better-zipper) 1))))
+
+(ert-deftest zipper-element-at-end ()
+  (let ((my-better-zipper (my-better-zipper/right (my-better-zipper/from-list '(1)))))
+    (should (equal (my-better-zipper/element my-better-zipper) 1))))
+
+(ert-deftest zipper-right ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-better-zipper/right my-better-zipper) '((1) (2 3 4))))))
+
+(ert-deftest zipper-right-at-end ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1))))
+    (should (equal (my-better-zipper/right my-better-zipper) '((1) nil)))))
+
+(ert-deftest zipper-left ()
+  (let ((my-better-zipper (my-better-zipper/right (my-better-zipper/from-list '(1 2)))))
+    (should (equal (my-better-zipper/left my-better-zipper) '(nil (1 2))))))
+
+(ert-deftest zipper-left-at-beginning ()
+  (let ((my-better-zipper (my-better-zipper/from-list '(1))))
+    (should (equal (my-better-zipper/left my-better-zipper) '(nil (1))))))
+
+
+(ert-run-tests-interactively 't)

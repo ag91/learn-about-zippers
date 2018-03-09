@@ -1,0 +1,113 @@
+(defun my-real-zipper/from-list (list)
+  "creates a zipper from a list"
+  `(nil ,list nil))
+
+(defun my-real-zipper/get-left (zipper)
+  (first zipper))
+
+(defun my-real-zipper/get-right (zipper)
+  (second zipper))
+
+(defun my-real-zipper/get-up (zipper)
+  (third zipper))
+
+(defun my-real-zipper/get-down (zipper)
+  (my-real-zipper/element zipper))
+
+(defun my-real-zipper/element (zipper)
+  "returns current zipper element"
+  (let ((right (my-real-zipper/get-right zipper))
+        (left (my-real-zipper/get-left zipper)))
+    (if right (first right) (first left))))
+
+(defun my-real-zipper/right (zipper)
+  "returns zipper shifted to right"
+  (let ((right (my-real-zipper/get-right zipper))
+        (left (my-real-zipper/get-left zipper))
+        (up (my-real-zipper/get-up zipper)))
+    (if right
+      (if left
+        (list (cons (first right) left) (cdr right) up)
+        (list (list (first right)) (cdr right) up)) 
+      zipper)))
+
+(defun my-real-zipper/left (zipper)
+  "returns zipper shifted to left"
+  (let ((right (my-real-zipper/get-right zipper))
+        (left (my-real-zipper/get-left zipper)))
+    (if left
+      (if right
+        (list (cdr left) (cons (first left) right) (my-real-zipper/get-up zipper))
+        (list (cdr left) (list (first left)) (my-real-zipper/get-up zipper)))
+      zipper)))
+
+(defun my-real-zipper/up (zipper)
+  "returns zipper shifted up"
+  (let ((up (my-real-zipper/get-up zipper)))
+    (if up
+      (list 
+        (my-real-zipper/get-left up) 
+        (my-real-zipper/get-right up)
+        (my-real-zipper/get-up up))
+      zipper)))
+
+(defun my-real-zipper/down (zipper)
+  "returns zipper shifted down"
+  (let ((down (my-real-zipper/get-down zipper)))
+    (if (consp down)
+      (list 
+        (my-real-zipper/get-left (my-real-zipper/from-list down)) 
+        (my-real-zipper/get-right (my-real-zipper/from-list down))
+        zipper)
+      zipper)))
+
+
+(ert-deftest zipper-from-list ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1 2 3 4))))
+    (should (equal my-real-zipper '(nil (1 2 3 4) nil)))))
+
+(ert-deftest zipper-element ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-real-zipper/element my-real-zipper) 1))))
+
+(ert-deftest zipper-element-at-end ()
+  (let ((my-real-zipper (my-real-zipper/right (my-real-zipper/from-list '(1)))))
+    (should (equal (my-real-zipper/element my-real-zipper) 1))))
+
+(ert-deftest zipper-right ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1 2 3 4))))
+    (should (equal (my-real-zipper/right my-real-zipper) '((1) (2 3 4) nil)))))
+
+(ert-deftest zipper-right-at-end ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1))))
+    (should (equal (my-real-zipper/right my-real-zipper) '((1) nil nil)))))
+
+(ert-deftest zipper-left ()
+  (let ((my-real-zipper (my-real-zipper/right (my-real-zipper/from-list '(1 2)))))
+    (should (equal (my-real-zipper/left my-real-zipper) '(nil (1 2) nil)))))
+
+(ert-deftest zipper-left-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '(1))))
+    (should (equal (my-real-zipper/left my-real-zipper) '(nil (1) nil)))))
+
+(ert-deftest zipper-down-up-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1)))))
+    (should (equal (my-real-zipper/up (my-real-zipper/down my-real-zipper)) my-real-zipper))))
+
+(ert-deftest zipper-up-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1)))))
+    (should (equal (my-real-zipper/up my-real-zipper) my-real-zipper))))
+
+(ert-deftest zipper-down-at-beginning ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1)))))
+    (should (equal (my-real-zipper/element (my-real-zipper/down my-real-zipper)) 1))))
+
+(ert-deftest zipper-down ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1 (2))))))
+    (should (equal (my-real-zipper/element (my-real-zipper/down (my-real-zipper/right (my-real-zipper/down my-real-zipper)))) 2))))
+
+(ert-deftest zipper-up ()
+  (let ((my-real-zipper (my-real-zipper/from-list '((1 (2))))))
+    (should (equal (my-real-zipper/element (my-real-zipper/down (my-real-zipper/right (my-real-zipper/down my-real-zipper)))) 2))))
+
+(ert-run-tests-interactively 't)
